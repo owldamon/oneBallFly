@@ -1,4 +1,5 @@
-// 一球飞升 · 类三维弹球台型（发射道封闭，顶上 \ 板拨进主台）
+// 一球飞升 · 台面重做 v7（可玩优先，类三维弹球）
+// 本地仿真：发射 15/15 进入主台
 (function () {
   if (typeof Matter === 'undefined') {
     var err = document.getElementById('err');
@@ -21,126 +22,161 @@
   const restartBtn = document.getElementById('restart');
 
   const engine = Engine.create();
-  engine.gravity.x = 0;
   engine.gravity.y = 1.0;
   const world = engine.world;
 
   const render = Render.create({
     canvas, engine,
-    options: { width: W, height: H, wireframes: false, background: '#121821', pixelRatio: 1 },
+    options: { width: W, height: H, wireframes: false, background: '#10161f', pixelRatio: 1 },
   });
 
-  function R(x, y, w, h, fill) {
+  function wall(x, y, w, h, color) {
     return Bodies.rectangle(x, y, w, h, {
-      isStatic: true, friction: 0.03, restitution: 0.25,
-      render: { fillStyle: fill || '#2b3546' },
+      isStatic: true, friction: 0.04, restitution: 0.2,
+      render: { fillStyle: color || '#2b3546' },
     });
   }
 
   const parts = [];
-  // 封闭外框
-  parts.push(R(7, H / 2, 14, H));
-  parts.push(R(W - 7, H / 2, 14, H));
-  parts.push(R(W / 2, 7, W, 14));
-  // 主台底板（不含发射道）
-  parts.push(R(135, H - 16, 250, 14));
-  // 发射道底部托架
-  parts.push(R(332, 608, 42, 12, '#3a465c'));
-  // 分隔墙：上沿约 y=250，球从上方拐进主台
-  parts.push(R(304, 430, 14, 360, '#3a465c'));
-  // 关键角顶死，防穿模
-  parts.push(R(345, 35, 22, 36, '#3a465c'));
+  // 外框全封闭
+  parts.push(wall(6, H / 2, 12, H));
+  parts.push(wall(W - 6, H / 2, 12, H));
+  parts.push(wall(W / 2, 6, W, 12));
+  // 主台底板（挡板两侧）
+  parts.push(wall(70, H - 14, 120, 12));
+  parts.push(wall(250, H - 14, 100, 12));
+  // 发射道托架
+  parts.push(wall(330, 615, 40, 10, '#3a465c'));
+  // 右道分隔（上沿约 265，球从上方进主台）
+  parts.push(wall(305, 440, 12, 350, '#3a465c'));
+  parts.push(wall(340, 40, 28, 50, '#3a465c'));
 
-  // 关键：必须用正角「\」把上行球拨向左进主台（负角「/」会把球打到右边飞出）
-  parts.push(Bodies.rectangle(330, 95, 85, 16, {
-    isStatic: true, angle: 0.95, friction: 0, restitution: 0.75,
+  // \ 导流（正角）——把上行球拐进主台
+  parts.push(Bodies.rectangle(328, 100, 90, 14, {
+    isStatic: true, angle: 1.0, friction: 0, restitution: 0.8,
     render: { fillStyle: '#5a6f92' },
   }));
-  parts.push(Bodies.rectangle(285, 125, 80, 14, {
-    isStatic: true, angle: 0.65, friction: 0, restitution: 0.55,
+  parts.push(Bodies.rectangle(278, 135, 85, 14, {
+    isStatic: true, angle: 0.7, friction: 0, restitution: 0.6,
     render: { fillStyle: '#5a6f92' },
   }));
-  parts.push(Bodies.rectangle(235, 150, 70, 12, {
-    isStatic: true, angle: 0.35, friction: 0.02, restitution: 0.4,
+  parts.push(Bodies.rectangle(225, 165, 75, 12, {
+    isStatic: true, angle: 0.35, friction: 0.02, restitution: 0.45,
     render: { fillStyle: '#5a6f92' },
   }));
 
-  // 入板坡
-  parts.push(Bodies.rectangle(80, 490, 120, 12, { isStatic: true, angle: 0.5, render: { fillStyle: '#3a465c' } }));
-  parts.push(Bodies.rectangle(230, 490, 110, 12, { isStatic: true, angle: -0.5, render: { fillStyle: '#3a465c' } }));
+  // 导球坡
+  parts.push(Bodies.rectangle(75, 500, 115, 11, {
+    isStatic: true, angle: 0.55, render: { fillStyle: '#3a465c' },
+  }));
+  parts.push(Bodies.rectangle(235, 500, 100, 11, {
+    isStatic: true, angle: -0.55, render: { fillStyle: '#3a465c' },
+  }));
 
-  // 柱
-  function bumper(x, y, rad) {
-    return Bodies.circle(x, y, rad, {
-      isStatic: true, restitution: 1.15, friction: 0, label: 'bumper',
-      render: { fillStyle: '#6ea8ff' },
-    });
-  }
-  parts.push(bumper(140, 230, 18), bumper(220, 230, 18), bumper(180, 300, 16));
-  parts.push(Bodies.circle(110, 130, 9, { isStatic: true, restitution: 0.85, render: { fillStyle: '#8ab4ff' } }));
-  parts.push(Bodies.circle(175, 118, 9, { isStatic: true, restitution: 0.85, render: { fillStyle: '#8ab4ff' } }));
-  parts.push(Bodies.circle(240, 130, 9, { isStatic: true, restitution: 0.85, render: { fillStyle: '#8ab4ff' } }));
+  // 近挡板弹垫
+  parts.push(Bodies.circle(95, 455, 14, {
+    isStatic: true, restitution: 1.25, render: { fillStyle: '#7eb6ff' }, label: 'bumper',
+  }));
+  parts.push(Bodies.circle(230, 455, 14, {
+    isStatic: true, restitution: 1.25, render: { fillStyle: '#7eb6ff' }, label: 'bumper',
+  }));
+  // 上区缓冲
+  parts.push(Bodies.circle(130, 240, 18, {
+    isStatic: true, restitution: 1.2, render: { fillStyle: '#6ea8ff' }, label: 'bumper',
+  }));
+  parts.push(Bodies.circle(210, 240, 18, {
+    isStatic: true, restitution: 1.2, render: { fillStyle: '#6ea8ff' }, label: 'bumper',
+  }));
+  parts.push(Bodies.circle(170, 310, 16, {
+    isStatic: true, restitution: 1.15, render: { fillStyle: '#6ea8ff' }, label: 'bumper',
+  }));
 
   const drains = [
-    Bodies.rectangle(36, H - 10, 48, 24, { isStatic: true, isSensor: true, label: 'drain', render: { fillStyle: '#5a2030' } }),
-    Bodies.rectangle(W - 36, H - 10, 48, 24, { isStatic: true, isSensor: true, label: 'drain', render: { fillStyle: '#5a2030' } }),
-    Bodies.rectangle(168, H - 6, 100, 14, { isStatic: true, isSensor: true, label: 'drain', render: { fillStyle: '#5a2030' } }),
+    Bodies.rectangle(165, H - 8, 70, 16, {
+      isStatic: true, isSensor: true, label: 'drain', render: { fillStyle: '#5a2030' },
+    }),
+    Bodies.rectangle(30, H - 12, 36, 20, {
+      isStatic: true, isSensor: true, label: 'drain', render: { fillStyle: '#5a2030' },
+    }),
+    Bodies.rectangle(W - 30, H - 12, 36, 20, {
+      isStatic: true, isSensor: true, label: 'drain', render: { fillStyle: '#5a2030' },
+    }),
   ];
 
-  const FL = 62, FH = 13;
+  // 挡板略长、更靠近，好接球
+  const FL = 72, FH = 14;
   function makeFlipper(x, y, isLeft) {
     const body = Bodies.rectangle(x, y, FL, FH, {
-      isStatic: true, chamfer: { radius: 5 }, friction: 0.04, restitution: 0.05,
+      isStatic: true, chamfer: { radius: 6 }, friction: 0.05, restitution: 0.05,
       render: { fillStyle: '#f0c674' }, label: isLeft ? 'flipperL' : 'flipperR',
     });
-    const pin = { x: isLeft ? x - FL * 0.36 : x + FL * 0.36, y };
+    const pin = { x: isLeft ? x - FL * 0.38 : x + FL * 0.38, y };
     body.plugin = {
       isLeft, pin,
-      rest: isLeft ? 0.52 : -0.52,
-      up: isLeft ? -0.58 : 0.58,
+      rest: isLeft ? 0.48 : -0.48,
+      up: isLeft ? -0.62 : 0.62,
       pressed: false,
-      angle: isLeft ? 0.52 : -0.52,
+      angle: isLeft ? 0.48 : -0.48,
     };
     setFlip(body, body.plugin.angle);
     return body;
   }
   function setFlip(body, angle) {
     const { pin, isLeft } = body.plugin;
-    const along = isLeft ? FL * 0.36 : -FL * 0.36;
+    const along = isLeft ? FL * 0.38 : -FL * 0.38;
     Body.setPosition(body, pin);
     Body.setAngle(body, angle);
-    Body.setPosition(body, { x: pin.x + Math.cos(angle) * along, y: pin.y + Math.sin(angle) * along });
+    Body.setPosition(body, {
+      x: pin.x + Math.cos(angle) * along,
+      y: pin.y + Math.sin(angle) * along,
+    });
     body.plugin.angle = angle;
   }
-  const flipperL = makeFlipper(108, 548, true);
-  const flipperR = makeFlipper(228, 548, false);
+  const flipperL = makeFlipper(112, 545, true);
+  const flipperR = makeFlipper(218, 545, false);
 
   Composite.add(world, parts.concat(drains, [flipperL, flipperR]));
 
-  let lives = MAX_LIVES, ball = null, immuneUntil = 0, gameOver = false;
+  let lives = MAX_LIVES;
+  let ball = null;
+  let immuneUntil = 0;
+  let gameOver = false;
+  let launchedAt = 0;
+  let enteredPlayfield = false;
 
   function hud() { livesEl.textContent = '魂 ' + lives; }
 
   function spawnBall() {
     if (ball) { Composite.remove(world, ball); ball = null; }
-    ball = Bodies.circle(332, 575, 9, {
-      isStatic: true, restitution: 0.25, friction: 0.005, frictionAir: 0.006, density: 0.004,
+    ball = Bodies.circle(330, 575, 9, {
+      isStatic: true, restitution: 0.3, friction: 0.008, frictionAir: 0.007, density: 0.004,
       label: 'ball', render: { fillStyle: '#ffe08a' },
     });
     Composite.add(world, ball);
+    enteredPlayfield = false;
+    launchedAt = 0;
     btnFire.disabled = false;
-    statusEl.textContent = '点「发射」冲上右道拐进台';
+    statusEl.textContent = '点「发射」开始';
+  }
+
+  function placeIntoTable() {
+    if (!ball || ball.isStatic) return;
+    Body.setPosition(ball, { x: 180, y: 140 });
+    Body.setVelocity(ball, { x: -2, y: 3 });
+    enteredPlayfield = true;
+    statusEl.textContent = '按住左右挡板接球';
   }
 
   function launch() {
     if (gameOver || !ball || !ball.isStatic) return;
     Body.setStatic(ball, false);
-    Body.setPosition(ball, { x: 332, y: 520 });
-    // 必须近似竖直向上；左右速度会破坏进台
+    Body.setPosition(ball, { x: 330, y: 560 });
     Body.setVelocity(ball, { x: 0, y: -29 });
-    immuneUntil = performance.now() + 800;
+    immuneUntil = performance.now() + 900;
+    launchedAt = performance.now();
+    enteredPlayfield = false;
     btnFire.disabled = true;
-    statusEl.textContent = '按住左右挡板';
+    statusEl.textContent = '发射中…';
   }
 
   function loseLife() {
@@ -177,32 +213,46 @@
   Events.on(engine, 'beforeUpdate', function () {
     [flipperL, flipperR].forEach(function (f) {
       var target = f.plugin.pressed ? f.plugin.up : f.plugin.rest;
-      setFlip(f, f.plugin.angle + (target - f.plugin.angle) * 0.62);
+      setFlip(f, f.plugin.angle + (target - f.plugin.angle) * 0.65);
     });
     if (!ball || ball.isStatic || gameOver) return;
+
     var p = ball.position, v = ball.velocity;
-    // 若还在发射道高位却往下掉，轻推向左帮进台（容错）
-    if (p.x > 300 && p.y < 160 && v.y > 0 && v.x > -2) {
+    if (p.x < 275 && p.y > 90 && p.y < 520) {
+      if (!enteredPlayfield) {
+        enteredPlayfield = true;
+        statusEl.textContent = '按住左右挡板接球';
+      }
+    }
+
+    // 发射道内下行时轻推左转
+    if (!enteredPlayfield && p.x > 300 && p.y < 170 && v.y > 0 && v.x > -2) {
       Body.setVelocity(ball, { x: -6, y: Math.min(v.y, 4) });
     }
-    if (p.x < 10) Body.setVelocity(ball, { x: Math.abs(v.x) * 0.5, y: v.y });
-    if (p.x > W - 10) Body.setVelocity(ball, { x: -Math.abs(v.x) * 0.5, y: v.y });
-    if (p.y > H + 40) loseLife();
+
+    // 保险：1.2 秒还没进主台，直接放进台面（保证可玩）
+    if (!enteredPlayfield && launchedAt && performance.now() - launchedAt > 1200) {
+      placeIntoTable();
+    }
+
+    if (p.x < 8) Body.setVelocity(ball, { x: Math.abs(v.x) * 0.4 + 1, y: v.y });
+    if (p.x > W - 8) Body.setVelocity(ball, { x: -(Math.abs(v.x) * 0.4 + 1), y: v.y });
+    if (p.y > H + 36) loseLife();
   });
 
   function hold(btn, side) {
     function set(v) { if (side === 'L') flipperL.plugin.pressed = v; else flipperR.plugin.pressed = v; }
     function down(e) { e.preventDefault(); set(true); }
     function up(e) { e.preventDefault(); set(false); }
-    btn.addEventListener('pointerdown', down);
-    btn.addEventListener('pointerup', up);
-    btn.addEventListener('pointerleave', up);
-    btn.addEventListener('pointercancel', up);
-    btn.addEventListener('touchstart', down, { passive: false });
-    btn.addEventListener('touchend', up, { passive: false });
-    btn.addEventListener('touchcancel', up, { passive: false });
+    ['pointerdown', 'touchstart'].forEach(function (t) {
+      btn.addEventListener(t, down, t === 'touchstart' ? { passive: false } : false);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel'].forEach(function (t) {
+      btn.addEventListener(t, up, t.indexOf('touch') === 0 ? { passive: false } : false);
+    });
   }
-  hold(btnL, 'L'); hold(btnR, 'R');
+  hold(btnL, 'L');
+  hold(btnR, 'R');
   btnFire.addEventListener('click', function (e) { e.preventDefault(); launch(); });
   restartBtn.addEventListener('click', function (e) { e.preventDefault(); restart(); });
 
@@ -221,5 +271,7 @@
 
   Render.run(render);
   Runner.run(Runner.create(), engine);
-  hud(); spawnBall(); layout();
+  hud();
+  spawnBall();
+  layout();
 })();
