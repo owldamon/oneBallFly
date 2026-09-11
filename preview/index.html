@@ -4,85 +4,76 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <title>一球飞升 · 物理沙盒</title>
+  <title>一球飞升 · 沙盒</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 100%; height: 100%;
-      background: #0b0e14; overflow: hidden;
+      width: 100%; height: 100%; background: #0b0e14; color: #e8ecf4;
       font-family: system-ui, -apple-system, sans-serif;
-      touch-action: none;
-      -webkit-user-select: none; user-select: none;
-      -webkit-touch-callout: none;
+      overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
     }
-    #wrap {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      width: 100%; height: 100%; height: 100dvh;
-      padding: env(safe-area-inset-top) 8px env(safe-area-inset-bottom);
-      gap: 6px;
+    #app {
+      height: 100%; height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom);
+      gap: 8px; max-width: 480px; margin: 0 auto;
     }
-    #hud {
-      width: min(100%, 420px); color: #e8ecf4; display: flex; justify-content: space-between;
-      padding: 4px 4px; font-size: 14px;
+    #hud { display: flex; justify-content: space-between; align-items: center; font-size: 15px; padding: 4px 2px; }
+    #stage-wrap {
+      position: relative; width: 100%; min-height: 0;
+      background: #141a24; border: 1px solid #2a3344; border-radius: 12px; overflow: hidden;
     }
-    #stage {
-      position: relative;
-      width: min(100%, 420px);
-      height: min(calc(100dvh - 88px), 747px);
-      background: #141a24; border: 1px solid #2a3344; border-radius: 8px; overflow: hidden;
-      touch-action: none;
-    }
-    canvas {
-      display: block; width: 100%; height: 100%;
-      touch-action: none;
-    }
+    #stage-wrap canvas { display: block; width: 100%; height: 100%; }
     #overlay {
-      display: none; position: absolute; inset: 0; background: rgba(8,10,16,0.82);
-      color: #fff; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-      z-index: 5;
+      display: none; position: absolute; inset: 0; background: rgba(8,10,16,.86);
+      flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 3;
     }
     #overlay.show { display: flex; }
-    #overlay h1 { font-size: 28px; font-weight: 600; }
-    button {
-      border: 0; border-radius: 8px; padding: 12px 20px; background: #5b8cff; color: #fff;
-      font-size: 16px; cursor: pointer; min-height: 44px;
-    }
-    #hint {
-      width: min(100%, 420px); color: #8b95a8; font-size: 12px; text-align: center; line-height: 1.4;
+    #overlay h1 { font-size: 26px; }
+    #controls {
+      display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px;
       padding-bottom: 4px;
     }
-    #err {
-      display: none; color: #ff8e8e; font-size: 13px; max-width: 420px; text-align: center; padding: 8px;
+    .btn {
+      appearance: none; border: 0; border-radius: 14px; min-height: 56px;
+      font-size: 17px; font-weight: 600; color: #fff;
+      background: #3a465c; touch-action: manipulation;
     }
+    .btn:active { filter: brightness(1.15); transform: scale(0.98); }
+    #btnL, #btnR { background: #c9a227; color: #1a1408; }
+    #btnFire { background: #5b8cff; }
+    #hint { font-size: 12px; color: #8b95a8; text-align: center; line-height: 1.35; }
+    #err { display:none; color:#ff8e8e; font-size:13px; text-align:center; }
   </style>
 </head>
 <body>
-  <div id="wrap">
+  <div id="app">
     <div id="hud">
       <span id="lives">魂 3</span>
-      <span id="status">加载中…</span>
+      <span id="status">准备中…</span>
     </div>
-    <div id="stage">
+    <div id="stage-wrap">
       <canvas id="c"></canvas>
-      <div id="overlay"><h1>阵停了</h1><button type="button" id="restart">再入一次</button></div>
+      <div id="overlay"><h1>阵停了</h1><button class="btn" id="restart" type="button">再入一次</button></div>
     </div>
-    <div id="hint">左半屏按住＝左挡板 · 右半屏＝右挡板<br/>右下上拉发射 · 掉沟扣魂</div>
-    <div id="err"></div>
+    <div>
+      <div id="controls">
+        <button class="btn" id="btnL" type="button">左挡</button>
+        <button class="btn" id="btnFire" type="button">发射</button>
+        <button class="btn" id="btnR" type="button">右挡</button>
+      </div>
+      <div id="hint">按住左右挡板击球 · 点「发射」出球 · 整台画面应完整可见</div>
+      <div id="err"></div>
+    </div>
   </div>
-  <!-- 物理库打进仓库，不依赖外网 CDN（手机/国内常挂） -->
   <script src="./matter.min.js"></script>
   <script>
-    window.addEventListener('error', function (e) {
+    window.onerror = function (msg) {
       var el = document.getElementById('err');
       el.style.display = 'block';
-      el.textContent = '加载失败：' + (e.message || e);
-    });
-    if (typeof Matter === 'undefined') {
-      var el = document.getElementById('err');
-      el.style.display = 'block';
-      el.textContent = '物理库未加载。请用 GitHub Pages 链接，或检查网络。';
-    }
+      el.textContent = String(msg);
+    };
   </script>
   <script src="./game.js"></script>
 </body>
