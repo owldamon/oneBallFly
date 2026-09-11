@@ -2,47 +2,88 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>一球飞升 · 物理沙盒</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: none; user-select: none; }
-    html, body { width: 100%; height: 100%; background: #0b0e14; overflow: hidden; font-family: system-ui, sans-serif; }
-    #wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 8px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #0b0e14; overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+      touch-action: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
+    }
+    #wrap {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 100%; height: 100%; height: 100dvh;
+      padding: env(safe-area-inset-top) 8px env(safe-area-inset-bottom);
+      gap: 6px;
+    }
     #hud {
-      width: min(100vw, 420px); color: #e8ecf4; display: flex; justify-content: space-between;
-      padding: 0 8px; font-size: 14px; letter-spacing: 0.02em;
+      width: min(100%, 420px); color: #e8ecf4; display: flex; justify-content: space-between;
+      padding: 4px 4px; font-size: 14px;
     }
     #stage {
-      position: relative; width: min(100vw, 420px); height: min(calc(100vh - 72px), 747px);
+      position: relative;
+      width: min(100%, 420px);
+      height: min(calc(100dvh - 88px), 747px);
       background: #141a24; border: 1px solid #2a3344; border-radius: 8px; overflow: hidden;
+      touch-action: none;
     }
-    canvas { display: block; width: 100%; height: 100%; }
+    canvas {
+      display: block; width: 100%; height: 100%;
+      touch-action: none;
+    }
     #overlay {
       display: none; position: absolute; inset: 0; background: rgba(8,10,16,0.82);
       color: #fff; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+      z-index: 5;
     }
     #overlay.show { display: flex; }
     #overlay h1 { font-size: 28px; font-weight: 600; }
     button {
-      border: 0; border-radius: 8px; padding: 10px 18px; background: #5b8cff; color: #fff;
-      font-size: 15px; cursor: pointer;
+      border: 0; border-radius: 8px; padding: 12px 20px; background: #5b8cff; color: #fff;
+      font-size: 16px; cursor: pointer; min-height: 44px;
     }
-    #hint { width: min(100vw, 420px); color: #8b95a8; font-size: 12px; padding: 0 8px; text-align: center; }
+    #hint {
+      width: min(100%, 420px); color: #8b95a8; font-size: 12px; text-align: center; line-height: 1.4;
+      padding-bottom: 4px;
+    }
+    #err {
+      display: none; color: #ff8e8e; font-size: 13px; max-width: 420px; text-align: center; padding: 8px;
+    }
   </style>
 </head>
 <body>
   <div id="wrap">
     <div id="hud">
       <span id="lives">魂 3</span>
-      <span id="status">上拉发射 · 左右按住挡板</span>
+      <span id="status">加载中…</span>
     </div>
     <div id="stage">
       <canvas id="c"></canvas>
-      <div id="overlay"><h1>阵停了</h1><button id="restart">再入一次</button></div>
+      <div id="overlay"><h1>阵停了</h1><button type="button" id="restart">再入一次</button></div>
     </div>
-    <div id="hint">左 40% / 右 40% 按住抬扉 · 底部上拉发射 · 掉沟 -1 魂</div>
+    <div id="hint">左半屏按住＝左挡板 · 右半屏＝右挡板<br/>右下上拉发射 · 掉沟扣魂</div>
+    <div id="err"></div>
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <!-- 物理库打进仓库，不依赖外网 CDN（手机/国内常挂） -->
+  <script src="./matter.min.js"></script>
+  <script>
+    window.addEventListener('error', function (e) {
+      var el = document.getElementById('err');
+      el.style.display = 'block';
+      el.textContent = '加载失败：' + (e.message || e);
+    });
+    if (typeof Matter === 'undefined') {
+      var el = document.getElementById('err');
+      el.style.display = 'block';
+      el.textContent = '物理库未加载。请用 GitHub Pages 链接，或检查网络。';
+    }
+  </script>
   <script src="./game.js"></script>
 </body>
 </html>

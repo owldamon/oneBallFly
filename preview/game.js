@@ -255,53 +255,97 @@ Events.on(engine, 'beforeUpdate', () => {
 
 function pointerXRatio(clientX) {
   const rect = canvas.getBoundingClientRect();
-  return (clientX - rect.left) / rect.width;
+  return (clientX - rect.left) / Math.max(rect.width, 1);
 }
 function pointerYInStage(clientY) {
   const rect = canvas.getBoundingClientRect();
-  return ((clientY - rect.top) / rect.height) * H;
+  return ((clientY - rect.top) / Math.max(rect.height, 1)) * H;
 }
 
-function onDown(clientX, clientY) {
+// 多指：左半屏/右半屏可同时按；右下单独蓄力
+const active = new Map(); // id -> 'L' | 'R' | 'charge'
+
+function syncFlippers() {
+  let L = false, R = false;
+  for (const v of active.values()) {
+    if (v === 'L') L = true;
+    if (v === 'R') R = true;
+  }
+  flipperL.plugin.pressed = L;
+  flipperR.plugin.pressed = R;
+}
+
+function onDown(id, clientX, clientY) {
   if (gameOver) return;
   const r = pointerXRatio(clientX);
   const y = pointerYInStage(clientY);
-  if (ball && ball.isStatic && r > 0.72) {
+  // 发射道：右下区域
+  if (ball && ball.isStatic && r > 0.68 && y > H * 0.55) {
+    active.set(id, 'charge');
     charging = true;
     chargeStartY = y;
     chargePower = 0;
+    statusEl.textContent = '蓄力中…上拉';
     return;
   }
-  if (r < 0.4) flipperL.plugin.pressed = true;
-  else if (r > 0.6) flipperR.plugin.pressed = true;
-  else if (r <= 0.6 && r >= 0.4) {
-    // middle: both light nudge unused; leave for nudge later
-  }
+  // 移动端放宽分区：左半 / 右半
+  if (r < 0.5) active.set(id, 'L');
+  else active.set(id, 'R');
+  syncFlippers();
 }
 
-function onMove(clientX, clientY) {
-  if (!charging) return;
+function onMove(id, clientX, clientY) {
+  if (active.get(id) !== 'charge') return;
   const y = pointerYInStage(clientY);
-  chargePower = Math.min(Math.max((chargeStartY - y) / 220, 0), 1);
+  chargePower = Math.min(Math.max((chargeStartY - y) / 180, 0), 1);
   statusEl.textContent = `蓄力 ${Math.round(chargePower * 100)}%`;
 }
 
-function onUp() {
-  if (charging) {
+function onUp(id) {
+  const kind = active.get(id);
+  active.delete(id);
+  if (kind === 'charge') {
     charging = false;
-    launchBall(chargePower || 0.45);
+    launchBall(chargePower || 0.5);
   }
-  flipperL.plugin.pressed = false;
-  flipperR.plugin.pressed = false;
+  syncFlippers();
 }
 
-canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
-  onDown(e.clientX, e.clientY);
-});
-canvas.addEventListener('pointermove', (e) => onMove(e.clientX, e.clientY));
-canvas.addEventListener('pointerup', onUp);
-canvas.addEventListener('pointercancel', onUp);
+function bind(el) {
+  const opts = { passive: false };
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    onDown(e.pointerId, e.clientX, e.clientY);
+  }, opts);
+  el.addEventListener('pointermove', (e) => {
+    e.preventDefault();
+    onMove(e.pointerId, e.clientX, e.clientY);
+  }, opts);
+  el.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    onUp(e.pointerId);
+  }, opts);
+  el.addEventListener('pointercancel', (e) => onUp(e.pointerId), opts);
+  // iOS Safari 兜底
+  el.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) onDown('t' + t.identifier, t.clientX, t.clientY);
+  }, opts);
+  el.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) onMove('t' + t.identifier, t.clientX, t.clientY);
+  }, opts);
+  el.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) onUp('t' + t.identifier);
+  }, opts);
+  el.addEventListener('touchcancel', (e) => {
+    for (const t of e.changedTouches) onUp('t' + t.identifier);
+  }, opts);
+}
+bind(canvas);
+bind(stage);
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'ArrowLeft' || e.code === 'KeyA' || e.code === 'ShiftLeft') flipperL.plugin.pressed = true;
@@ -326,3 +370,4 @@ Render.run(render);
 Runner.run(Runner.create(), engine);
 updateHud();
 spawnBall(false);
+statusEl.textContent = '准备好了 · 右下上拉发射';
