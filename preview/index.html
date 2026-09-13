@@ -4,54 +4,77 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>一球飞升 · 沙盒</title>
+  <title>一球飞升</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 100%; height: 100%; background: #0b0e14; color: #e8ecf4;
-      font-family: system-ui, -apple-system, sans-serif;
+      width: 100%; height: 100%;
+      background: #d8d8d6;
+      font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
       overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+      color: #3a3f45;
     }
     #app {
       height: 100%; height: 100dvh;
       display: grid;
       grid-template-rows: auto 1fr auto;
-      padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom);
-      gap: 8px; max-width: 480px; margin: 0 auto;
+      padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+      gap: 8px; max-width: 420px; margin: 0 auto;
     }
-    #hud { display: flex; justify-content: space-between; align-items: center; font-size: 15px; padding: 4px 2px; }
+    #hud {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 2px 4px 0;
+    }
+    #hud-left .label { font-size: 13px; color: #5b656e; }
+    #hud-left .score { font-size: 22px; font-weight: 600; letter-spacing: 0.02em; margin-top: 2px; }
+    #lives { display: flex; gap: 6px; margin-top: 6px; }
+    #lives i {
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 1.5px solid #7f9e8a; display: inline-block;
+      background: transparent;
+    }
+    #lives i.on { background: #8fbfa3; }
+    #hud-right { text-align: right; font-size: 18px; font-weight: 600; color: #4a5560; padding-top: 4px; }
     #stage-wrap {
       position: relative; width: 100%; min-height: 0;
-      background: #141a24; border: 1px solid #2a3344; border-radius: 12px; overflow: hidden;
+      border-radius: 20px; overflow: hidden;
+      background: #cfcfcb;
     }
     #stage-wrap canvas { display: block; width: 100%; height: 100%; }
     #overlay {
-      display: none; position: absolute; inset: 0; background: rgba(8,10,16,.86);
+      display: none; position: absolute; inset: 0; background: rgba(40,45,50,.45);
       flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 3;
+      backdrop-filter: blur(2px);
     }
     #overlay.show { display: flex; }
-    #overlay h1 { font-size: 26px; }
+    #overlay h1 { font-size: 26px; font-weight: 600; color: #fff; }
     #controls {
-      display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px;
-      padding-bottom: 4px;
+      display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 8px;
     }
     .btn {
-      appearance: none; border: 0; border-radius: 14px; min-height: 56px;
-      font-size: 17px; font-weight: 600; color: #fff;
-      background: #3a465c; touch-action: manipulation;
+      appearance: none; border: 1.5px solid #c4a35a; border-radius: 16px; min-height: 54px;
+      font-size: 16px; font-weight: 600; color: #3d4a42;
+      background: linear-gradient(180deg, #c8ddcb, #a8c4b0);
+      touch-action: manipulation;
     }
-    .btn:active { filter: brightness(1.15); transform: scale(0.98); }
-    #btnL, #btnR { background: #c9a227; color: #1a1408; }
-    #btnFire { background: #5b8cff; }
-    #hint { font-size: 12px; color: #8b95a8; text-align: center; line-height: 1.35; }
-    #err { display:none; color:#ff8e8e; font-size:13px; text-align:center; }
+    #btnFire {
+      background: linear-gradient(180deg, #e8d7a8, #d4b76a);
+      color: #4a3d1f;
+    }
+    .btn:active { filter: brightness(1.05); transform: scale(0.98); }
+    #hint { font-size: 12px; color: #7a848e; text-align: center; line-height: 1.35; margin-top: 4px; }
+    #err { display:none; color:#b44; font-size:13px; text-align:center; }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="hud">
-      <span id="lives">魂 3</span>
-      <span id="status">准备中…</span>
+      <div id="hud-left">
+        <div class="label">灵力</div>
+        <div class="score" id="score">0</div>
+        <div id="lives"></div>
+      </div>
+      <div id="hud-right"><span id="mult">× 1</span></div>
     </div>
     <div id="stage-wrap">
       <canvas id="c"></canvas>
@@ -60,10 +83,10 @@
     <div>
       <div id="controls">
         <button class="btn" id="btnL" type="button">左挡</button>
-        <button class="btn" id="btnFire" type="button">发射</button>
+        <button class="btn" id="btnFire" type="button">入阵</button>
         <button class="btn" id="btnR" type="button">右挡</button>
       </div>
-      <div id="hint">按住挡板可把球打上去 · 点发射进台</div>
+      <div id="hint">水墨胶囊台 · 点「入阵」落珠 · 按住挡板击起</div>
       <div id="err"></div>
     </div>
   </div>
